@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+:root {
+  --banker-color: #dc2626;
+  --player-color: #2563eb;
+  --tie-color: #16a34a;
+  --win-color: #22c55e;
+  --loss-color: #ef4444;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  @apply bg-slate-900 text-white min-h-screen;
+  font-family: 'Inter', system-ui, sans-serif;
+  margin: 0;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-600 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-500;
+}
+
+/* Card animations */
+@keyframes dealCard {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) rotateY(180deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotateY(0);
+  }
+}
+
+.animate-deal {
+  animation: dealCard 0.3s ease-out forwards;
+}
+
+/* Glow effects */
+.glow-banker {
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+}
+
+.glow-player {
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.5);
+}
+
+.glow-tie {
+  box-shadow: 0 0 20px rgba(22, 163, 74, 0.5);
+}
+
+/* Pulse animation for active bet */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 20px currentColor;
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
