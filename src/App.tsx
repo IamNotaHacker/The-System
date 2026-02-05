@@ -33,15 +33,15 @@ function App() {
     <div className="min-h-screen bg-slate-900 flex flex-col">
       <Header />
 
-      <main className="flex-1 p-6">
-        <div className="max-w-[1800px] mx-auto grid grid-cols-12 gap-6">
+      <main className="flex-1 p-3 md:p-4 lg:p-6">
+        <div className="max-w-[1800px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
           {/* Left Sidebar - Strategy Panel */}
-          <div className="col-span-3">
+          <div className="lg:col-span-3 order-1 lg:order-1">
             <StrategyPanel />
           </div>
 
           {/* Main Content Area */}
-          <div className="col-span-6 space-y-6">
+          <div className="lg:col-span-6 space-y-4 lg:space-y-6 order-3 lg:order-2">
             {/* Game Controls */}
             <GameControls />
 
@@ -52,7 +52,7 @@ function App() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+                    className={`flex-1 px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm font-medium transition-colors ${
                       activeTab === tab.id
                         ? 'bg-slate-700 text-white'
                         : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
@@ -62,7 +62,7 @@ function App() {
                   </button>
                 ))}
               </div>
-              <div className="p-6">
+              <div className="p-3 md:p-4 lg:p-6">
                 {activeTab === 'scoreboard' && <Scoreboard />}
                 {activeTab === 'statistics' && <Statistics />}
                 {activeTab === 'history' && <BetHistory />}
@@ -71,9 +71,12 @@ function App() {
           </div>
 
           {/* Right Sidebar - Quick Stats & Info */}
-          <div className="col-span-3 space-y-4">
-            <QuickStats />
-            <HouseEdgeInfo />
+          <div className="lg:col-span-3 space-y-4 order-2 lg:order-3">
+            {/* Mobile: Show quick stats inline */}
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+              <QuickStats />
+              <HouseEdgeInfo />
+            </div>
             <StrategyTips />
           </div>
         </div>
@@ -92,30 +95,30 @@ function QuickStats() {
   const profit = bankroll - initialBankroll;
 
   return (
-    <div className="bg-slate-800 rounded-xl p-4">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">Quick Stats</h3>
+    <div className="bg-slate-800 rounded-xl p-4 lg:p-5">
+      <h3 className="text-sm lg:text-base font-medium text-slate-400 mb-3">Quick Stats</h3>
       <div className="space-y-3">
-        <div className="flex justify-between">
-          <span className="text-sm text-slate-500">Session P/L</span>
-          <span className={`font-semibold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+        <div className="flex justify-between items-center">
+          <span className="text-sm lg:text-base text-slate-500">Session P/L</span>
+          <span className={`font-semibold text-base lg:text-lg ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
             {profit >= 0 ? '+' : ''}${profit.toLocaleString()}
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-sm text-slate-500">Win Rate</span>
-          <span className="font-semibold text-white">
+        <div className="flex justify-between items-center">
+          <span className="text-sm lg:text-base text-slate-500">Win Rate</span>
+          <span className="font-semibold text-base lg:text-lg text-white">
             {sessionStats.handsPlayed > 0
               ? ((strategyState?.wins || 0) / sessionStats.handsPlayed * 100).toFixed(1)
               : '0.0'}%
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-sm text-slate-500">Hands Played</span>
-          <span className="font-semibold text-white">{sessionStats.handsPlayed}</span>
+        <div className="flex justify-between items-center">
+          <span className="text-sm lg:text-base text-slate-500">Hands Played</span>
+          <span className="font-semibold text-base lg:text-lg text-white">{sessionStats.handsPlayed}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-sm text-slate-500">Next Bet</span>
-          <span className="font-semibold text-amber-400">${strategyState?.currentBet || 0}</span>
+        <div className="flex justify-between items-center">
+          <span className="text-sm lg:text-base text-slate-500">Next Bet</span>
+          <span className="font-semibold text-base lg:text-lg text-amber-400">${strategyState?.currentBet || 0}</span>
         </div>
       </div>
     </div>
@@ -132,22 +135,22 @@ function HouseEdgeInfo() {
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl p-4">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">House Edge</h3>
-      <div className={`p-3 rounded-lg ${
+    <div className="bg-slate-800 rounded-xl p-4 lg:p-5">
+      <h3 className="text-sm lg:text-base font-medium text-slate-400 mb-3">House Edge</h3>
+      <div className={`p-3 lg:p-4 rounded-lg ${
         betType === 'player' ? 'bg-blue-500/20' :
         betType === 'banker' ? 'bg-red-500/20' : 'bg-green-500/20'
       }`}>
         <div className="flex items-center justify-between mb-1">
-          <span className="text-sm font-medium text-white capitalize">{betType} Bet</span>
-          <span className={`font-bold ${
+          <span className="text-sm lg:text-base font-medium text-white capitalize">{betType} Bet</span>
+          <span className={`font-bold text-lg lg:text-xl ${
             betType === 'player' ? 'text-blue-400' :
             betType === 'banker' ? 'text-red-400' : 'text-green-400'
           }`}>
             {edges[betType].edge}%
           </span>
         </div>
-        <p className="text-xs text-slate-400">{edges[betType].desc}</p>
+        <p className="text-xs lg:text-sm text-slate-400">{edges[betType].desc}</p>
       </div>
     </div>
   );
@@ -200,13 +203,13 @@ function StrategyTips() {
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl p-4">
-      <h3 className="text-sm font-medium text-slate-400 mb-3">Strategy Tips</h3>
-      <ul className="space-y-2">
+    <div className="bg-gradient-to-br from-amber-900/30 to-slate-800 rounded-xl p-4 lg:p-5 border border-amber-500/20">
+      <h3 className="text-base lg:text-lg font-semibold text-amber-400 mb-4">Strategy Tips</h3>
+      <ul className="space-y-3">
         {(tips[strategyType] || tips['flat']).map((tip, idx) => (
-          <li key={idx} className="flex gap-2 text-xs text-slate-300">
-            <span className="text-amber-500">•</span>
-            {tip}
+          <li key={idx} className="flex gap-3 text-sm lg:text-base text-slate-200">
+            <span className="text-amber-500 text-lg">•</span>
+            <span>{tip}</span>
           </li>
         ))}
       </ul>

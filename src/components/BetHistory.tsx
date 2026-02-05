@@ -1,19 +1,32 @@
+import { useMemo } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 export function BetHistory() {
-  const { sessionStats, initialBankroll, strategyState } = useGameStore();
+  const sessionStats = useGameStore((state) => state.sessionStats);
+  const initialBankroll = useGameStore((state) => state.initialBankroll);
+  const strategyState = useGameStore((state) => state.strategyState);
 
-  const chartData = sessionStats.betHistory.map((bet, idx) => ({
-    hand: idx + 1,
-    balance: bet.balance,
-    profit: bet.balance - initialBankroll
-  }));
+  // Memoize chart data to prevent unnecessary recalculations
+  const chartData = useMemo(() => {
+    const data = sessionStats.betHistory.map((bet, idx) => ({
+      hand: idx + 1,
+      balance: bet.balance,
+      profit: bet.balance - initialBankroll
+    }));
 
-  // Add starting point
-  if (chartData.length > 0) {
-    chartData.unshift({ hand: 0, balance: initialBankroll, profit: 0 });
-  }
+    // Add starting point
+    if (data.length > 0) {
+      data.unshift({ hand: 0, balance: initialBankroll, profit: 0 });
+    }
+
+    return data;
+  }, [sessionStats.betHistory, initialBankroll]);
+
+  // Memoize reversed history
+  const reversedHistory = useMemo(() => {
+    return [...sessionStats.betHistory].reverse();
+  }, [sessionStats.betHistory]);
 
   const getResultColor = (result: string) => {
     switch (result) {
@@ -121,8 +134,8 @@ export function BetHistory() {
                 </tr>
               </thead>
               <tbody>
-                {[...sessionStats.betHistory].reverse().map((bet, idx) => (
-                  <tr key={sessionStats.betHistory.length - 1 - idx} className="border-t border-slate-700">
+                {reversedHistory.map((bet) => (
+                  <tr key={`bet-${bet.hand}`} className="border-t border-slate-700">
                     <td className="py-2 text-slate-500">{bet.hand}</td>
                     <td className={`py-2 font-medium ${getResultColor(bet.result)}`}>
                       {bet.result.charAt(0).toUpperCase() + bet.result.slice(1)}

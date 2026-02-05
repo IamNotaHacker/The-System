@@ -1,9 +1,32 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { HandResult, GameResult, BetType } from '../engine/baccarat';
 import { generateRandomShoe, parseShoeData, calculatePayout } from '../engine/baccarat';
 import type { StrategyState, StrategyType } from '../engine/strategies';
 import { BettingStrategy, createStrategy } from '../engine/strategies';
+
+// Throttled storage to prevent freezing during rapid updates
+let saveTimeout: number | null = null;
+let pendingSave: (() => void) | null = null;
+
+const throttledLocalStorage = {
+  getItem: (name: string): string | null => {
+    return localStorage.getItem(name);
+  },
+  setItem: (name: string, value: string): void => {
+    pendingSave = () => localStorage.setItem(name, value);
+    if (saveTimeout === null) {
+      saveTimeout = window.setTimeout(() => {
+        if (pendingSave) pendingSave();
+        saveTimeout = null;
+        pendingSave = null;
+      }, 1000);
+    }
+  },
+  removeItem: (name: string): void => {
+    localStorage.removeItem(name);
+  }
+};
 
 export interface SessionStats {
   handsPlayed: number;
@@ -157,15 +180,16 @@ export const useGameStore = create<GameState>()(
       },
 
       playNextHand: () => {
-        const { shoeResults, currentPosition, strategy, betType, bankroll, sessionStats } = get();
+        const state = get();
+        const { shoeResults, currentPosition, strategy, betType, bankroll, sessionStats, shoeHistory } = state;
 
         if (currentPosition >= shoeResults.length) {
-          get().stopAutoPlay();
+          set({ isAutoPlaying: false });
           return;
         }
 
         if (!strategy || !strategy.isActive) {
-          get().stopAutoPlay();
+          set({ isAutoPlaying: false });
           return;
         }
 
@@ -175,8 +199,7 @@ export const useGameStore = create<GameState>()(
         // Check if we can afford the bet
         if (betAmount > bankroll) {
           strategy.isActive = false;
-          set({ strategyState: strategy.getState() });
-          get().stopAutoPlay();
+          set({ strategyState: strategy.getState(), isAutoPlaying: false });
           return;
         }
 
@@ -194,57 +217,52 @@ export const useGameStore = create<GameState>()(
         // Update bankroll
         const newBankroll = bankroll + payout;
 
-        // Update session stats
-        const newStats = { ...sessionStats };
-        newStats.handsPlayed++;
-
-        if (result === 'banker') {
-          newStats.bankerWins++;
-        } else if (result === 'player') {
-          newStats.playerWins++;
+        // Calculate new streak
+        let newStreak = sessionStats.currentStreak;
+        if (result === sessionStats.currentStreak.type) {
+          newStreak = { type: result, count: sessionStats.currentStreak.count + 1 };
         } else {
-          newStats.ties++;
+          newStreak = { type: result, count: 1 };
         }
 
-        // Update streak
-        if (result === newStats.currentStreak.type) {
-          newStats.currentStreak.count++;
-        } else {
-          newStats.currentStreak = { type: result, count: 1 };
-        }
-
-        if (result === 'banker') {
-          newStats.longestBankerStreak = Math.max(newStats.longestBankerStreak, newStats.currentStreak.count);
-        } else if (result === 'player') {
-          newStats.longestPlayerStreak = Math.max(newStats.longestPlayerStreak, newStats.currentStreak.count);
-        }
-
-        // Add to bet history
-        newStats.betHistory.push({
+        // Create new bet history entry
+        const newBetEntry = {
           hand: currentPosition + 1,
           result,
           betType,
           betAmount,
           payout,
           balance: newBankroll
-        });
+        };
 
-        // Update shoe history
-        const newHistory = [...get().shoeHistory, result];
+        // Build new stats object immutably
+        const newStats: SessionStats = {
+          handsPlayed: sessionStats.handsPlayed + 1,
+          bankerWins: sessionStats.bankerWins + (result === 'banker' ? 1 : 0),
+          playerWins: sessionStats.playerWins + (result === 'player' ? 1 : 0),
+          ties: sessionStats.ties + (result === 'tie' ? 1 : 0),
+          currentStreak: newStreak,
+          longestBankerStreak: result === 'banker'
+            ? Math.max(sessionStats.longestBankerStreak, newStreak.count)
+            : sessionStats.longestBankerStreak,
+          longestPlayerStreak: result === 'player'
+            ? Math.max(sessionStats.longestPlayerStreak, newStreak.count)
+            : sessionStats.longestPlayerStreak,
+          betHistory: [...sessionStats.betHistory, newBetEntry]
+        };
+
+        // Check if strategy is still active
+        const shouldStopAutoPlay = !strategy.isActive || newBankroll <= 0;
 
         set({
           currentPosition: currentPosition + 1,
           bankroll: newBankroll,
           sessionStats: newStats,
           strategyState: strategy.getState(),
-          shoeHistory: newHistory,
-          isPlaying: true
+          shoeHistory: [...shoeHistory, result],
+          isPlaying: true,
+          isAutoPlaying: shouldStopAutoPlay ? false : state.isAutoPlaying
         });
-
-        // Check if strategy is still active
-        if (!strategy.isActive || newBankroll <= 0) {
-          get().stopAutoPlay();
-        }
       },
 
       stepBack: () => {
@@ -341,6 +359,7 @@ export const useGameStore = create<GameState>()(
     }),
     {
       name: 'baccarat-pro-storage',
+      storage: createJSONStorage(() => throttledLocalStorage),
       partialize: (state) => ({
         betType: state.betType,
         strategyType: state.strategyType,

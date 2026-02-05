@@ -1,32 +1,35 @@
+import { memo, useMemo } from 'react';
 import type { HandResult } from '../engine/baccarat';
 import { useGameStore } from '../store/gameStore';
 
 // Bead Plate - Simple grid showing all results
-function BeadPlate({ results }: { results: HandResult[] }) {
+const BeadPlate = memo(function BeadPlate({ results }: { results: HandResult[] }) {
   const cols = 6;
   const maxRows = 12;
 
-  const grid: (HandResult | null)[][] = [];
+  const grid = useMemo(() => {
+    const g: (HandResult | null)[][] = [];
+    let col = 0;
+    let row = 0;
 
-  // Fill grid column by column
-  let col = 0;
-  let row = 0;
+    for (const result of results) {
+      if (!g[col]) g[col] = [];
+      g[col][row] = result;
 
-  for (const result of results) {
-    if (!grid[col]) grid[col] = [];
-    grid[col][row] = result;
-
-    row++;
-    if (row >= maxRows) {
-      row = 0;
-      col++;
+      row++;
+      if (row >= maxRows) {
+        row = 0;
+        col++;
+      }
     }
-  }
 
-  // Ensure we have enough columns
-  while (grid.length < cols) {
-    grid.push([]);
-  }
+    // Ensure we have enough columns
+    while (g.length < cols) {
+      g.push([]);
+    }
+
+    return g;
+  }, [results]);
 
   const getResultStyle = (result: HandResult | null) => {
     if (!result) return 'bg-slate-800';
@@ -68,55 +71,58 @@ function BeadPlate({ results }: { results: HandResult[] }) {
       </div>
     </div>
   );
-}
+});
 
 // Big Road - Traditional baccarat scoreboard
-function BigRoad({ results }: { results: HandResult[] }) {
+const BigRoad = memo(function BigRoad({ results }: { results: HandResult[] }) {
   const maxCols = 30;
   const maxRows = 6;
 
-  // Build big road: new column on result change, continue down on same result
-  const grid: { result: HandResult; isTie: boolean }[][] = [];
-  let currentCol = -1;
-  let currentRow = 0;
-  let lastResult: HandResult | null = null;
+  const grid = useMemo(() => {
+    const g: { result: HandResult; isTie: boolean }[][] = [];
+    let currentCol = -1;
+    let currentRow = 0;
+    let lastResult: HandResult | null = null;
 
-  for (const result of results) {
-    // Skip ties (they are marked on the previous cell)
-    if (result === 'tie') {
-      if (currentCol >= 0 && grid[currentCol]) {
-        // Mark tie on current position
-        const lastEntry = grid[currentCol][currentRow - 1] || grid[currentCol][currentRow];
-        if (lastEntry) {
-          lastEntry.isTie = true;
+    for (const result of results) {
+      // Skip ties (they are marked on the previous cell)
+      if (result === 'tie') {
+        if (currentCol >= 0 && g[currentCol]) {
+          // Mark tie on current position
+          const lastEntry = g[currentCol][currentRow - 1] || g[currentCol][currentRow];
+          if (lastEntry) {
+            lastEntry.isTie = true;
+          }
+        }
+        continue;
+      }
+
+      if (result !== lastResult) {
+        // New column
+        currentCol++;
+        currentRow = 0;
+        lastResult = result;
+      } else {
+        // Continue down
+        currentRow++;
+        // Dragon tail: if we hit max rows, move right but stay at bottom
+        if (currentRow >= maxRows) {
+          currentCol++;
+          currentRow = maxRows - 1;
         }
       }
-      continue;
+
+      if (!g[currentCol]) g[currentCol] = [];
+      g[currentCol][currentRow] = { result, isTie: false };
     }
 
-    if (result !== lastResult) {
-      // New column
-      currentCol++;
-      currentRow = 0;
-      lastResult = result;
-    } else {
-      // Continue down
-      currentRow++;
-      // Dragon tail: if we hit max rows, move right but stay at bottom
-      if (currentRow >= maxRows) {
-        currentCol++;
-        currentRow = maxRows - 1;
-      }
+    // Ensure minimum columns for display
+    while (g.length < maxCols) {
+      g.push([]);
     }
 
-    if (!grid[currentCol]) grid[currentCol] = [];
-    grid[currentCol][currentRow] = { result, isTie: false };
-  }
-
-  // Ensure minimum columns for display
-  while (grid.length < maxCols) {
-    grid.push([]);
-  }
+    return g;
+  }, [results]);
 
   const getResultStyle = (entry: { result: HandResult; isTie: boolean } | null) => {
     if (!entry) return 'border-slate-700';
@@ -160,10 +166,10 @@ function BigRoad({ results }: { results: HandResult[] }) {
       </div>
     </div>
   );
-}
+});
 
 // Result History Strip
-function ResultStrip({ results, currentPosition }: { results: HandResult[]; currentPosition: number }) {
+const ResultStrip = memo(function ResultStrip({ results, currentPosition }: { results: HandResult[]; currentPosition: number }) {
   const getResultColor = (result: HandResult) => {
     switch (result) {
       case 'banker':
@@ -197,10 +203,12 @@ function ResultStrip({ results, currentPosition }: { results: HandResult[]; curr
       </div>
     </div>
   );
-}
+});
 
 export function Scoreboard() {
-  const { shoeResults, shoeHistory, currentPosition } = useGameStore();
+  const shoeResults = useGameStore((state) => state.shoeResults);
+  const shoeHistory = useGameStore((state) => state.shoeHistory);
+  const currentPosition = useGameStore((state) => state.currentPosition);
 
   return (
     <div className="space-y-4">
