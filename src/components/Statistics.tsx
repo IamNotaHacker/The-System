@@ -1,14 +1,41 @@
+import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { HOUSE_EDGE, PROBABILITIES } from '../engine/baccarat';
 
 export function Statistics() {
-  const { sessionStats, strategyState, bankroll, initialBankroll, betType } = useGameStore();
+  const sessionStats = useGameStore((state) => state.sessionStats);
+  const strategyState = useGameStore((state) => state.strategyState);
+  const bankroll = useGameStore((state) => state.bankroll);
+  const initialBankroll = useGameStore((state) => state.initialBankroll);
+  const betType = useGameStore((state) => state.betType);
+
+  // State for comp calculator
+  const [hoursPlayed, setHoursPlayed] = useState('2');
+  const [compRate, setCompRate] = useState('30');
 
   const profit = bankroll - initialBankroll;
   const totalBets = sessionStats.handsPlayed;
   const winRate = totalBets > 0
     ? ((strategyState?.wins || 0) / totalBets * 100).toFixed(1)
     : '0.0';
+
+  // Comp calculations
+  const totalWagered = strategyState?.totalWagered || 0;
+  const avgBet = totalBets > 0 ? totalWagered / totalBets : 0;
+  const houseEdgeDecimal = HOUSE_EDGE[betType] / 100;
+  const theoreticalLoss = totalWagered * houseEdgeDecimal;
+
+  // For projecting based on hours (assuming ~70 hands/hour for baccarat)
+  const handsPerHour = 70;
+  const hours = parseFloat(hoursPlayed) || 0;
+  const projectedHands = hours * handsPerHour;
+  const projectedWagered = avgBet * projectedHands;
+  const projectedTheoLoss = projectedWagered * houseEdgeDecimal;
+
+  // Comp estimates
+  const compRateDecimal = (parseFloat(compRate) || 0) / 100;
+  const estimatedComps = theoreticalLoss * compRateDecimal;
+  const projectedComps = projectedTheoLoss * compRateDecimal;
 
   const bankerPercent = sessionStats.handsPlayed > 0
     ? ((sessionStats.bankerWins / sessionStats.handsPlayed) * 100).toFixed(1)
@@ -52,6 +79,93 @@ export function Statistics() {
               ${strategyState?.maxBet.toLocaleString() || 0}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Theoretical Loss & Comp Calculator */}
+      <div className="bg-gradient-to-br from-purple-900/30 to-slate-800 rounded-xl p-6 border border-purple-500/20">
+        <h2 className="text-lg font-semibold text-purple-400 mb-4">Theoretical Loss & Comps</h2>
+
+        {/* Theoretical Loss from Session */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="bg-slate-900/50 rounded-lg p-4">
+            <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Total Wagered</div>
+            <div className="text-xl font-bold text-white">${totalWagered.toLocaleString()}</div>
+          </div>
+          <div className="bg-slate-900/50 rounded-lg p-4">
+            <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Average Bet</div>
+            <div className="text-xl font-bold text-white">${avgBet.toFixed(0)}</div>
+          </div>
+          <div className="bg-slate-900/50 rounded-lg p-4">
+            <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Theoretical Loss</div>
+            <div className="text-xl font-bold text-red-400">${theoreticalLoss.toFixed(2)}</div>
+            <div className="text-xs text-slate-500 mt-1">Based on {betType} ({HOUSE_EDGE[betType]}% edge)</div>
+          </div>
+          <div className="bg-slate-900/50 rounded-lg p-4">
+            <div className="text-xs text-slate-400 uppercase tracking-wider mb-1">Estimated Comps</div>
+            <div className="text-xl font-bold text-green-400">${estimatedComps.toFixed(2)}</div>
+            <div className="text-xs text-slate-500 mt-1">At {compRate}% comp rate</div>
+          </div>
+        </div>
+
+        {/* Comp Rate & Hours Adjustment */}
+        <div className="bg-slate-900/50 rounded-lg p-4 mb-4">
+          <div className="text-sm text-slate-400 mb-3">Projection Settings</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">Hours at Table</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={hoursPlayed}
+                onChange={(e) => setHoursPlayed(e.target.value.replace(/[^0-9.]/g, ''))}
+                className="w-full bg-slate-800 rounded-lg px-3 py-2 text-white text-sm border border-slate-600 focus:border-purple-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">Comp Rate %</label>
+              <select
+                value={compRate}
+                onChange={(e) => setCompRate(e.target.value)}
+                className="w-full bg-slate-800 rounded-lg px-3 py-2 text-white text-sm border border-slate-600 focus:border-purple-500 focus:outline-none"
+              >
+                <option value="15">15% (Tight)</option>
+                <option value="20">20% (Standard)</option>
+                <option value="25">25% (Good)</option>
+                <option value="30">30% (Great)</option>
+                <option value="40">40% (VIP)</option>
+                <option value="50">50% (High Roller)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Projected Values */}
+        {avgBet > 0 && hours > 0 && (
+          <div className="bg-slate-900/50 rounded-lg p-4">
+            <div className="text-sm text-slate-400 mb-3">Projected for {hours} Hours (~{handsPerHour} hands/hr)</div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <div className="text-xs text-slate-500">Est. Hands</div>
+                <div className="text-lg font-bold text-white">{Math.round(projectedHands)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">Theo Loss</div>
+                <div className="text-lg font-bold text-red-400">${projectedTheoLoss.toFixed(0)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">Est. Comps</div>
+                <div className="text-lg font-bold text-green-400">${projectedComps.toFixed(0)}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Comp Reference */}
+        <div className="mt-4 p-3 bg-slate-900/30 rounded-lg text-xs text-slate-500">
+          <div className="font-medium text-slate-400 mb-1">How Casinos Calculate Comps:</div>
+          <div>Theo Loss = Average Bet × Hands × House Edge</div>
+          <div>Comps = Theo Loss × Comp Rate (typically 20-40%)</div>
         </div>
       </div>
 
